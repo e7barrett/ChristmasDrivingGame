@@ -1,1 +1,117 @@
+#   Imports   #
 
+import pygame
+from pygame.locals import *
+from pygame.math import Vector2 as vec
+import random
+import sys
+
+#   idk yet   #
+
+pygame.init()
+
+WIDTH = 1920
+HEIGHT = 1080
+FPS = 60
+FPSClock = pygame.time.Clock()
+
+window = pygame.display.set_mode((WIDTH, HEIGHT))
+
+obstacles = pygame.sprite.Group()
+timeSpent = 1
+
+#   Classes   #
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.surf = pygame.Surface((60,100))
+        self.surf.fill((255,40,255))
+        self.rect = self.surf.get_rect()
+
+        self.pos = vec((WIDTH/2, 900))
+        self.vel = vec((0,0))
+        self.fric = 0.95
+        self.speed = 1.9
+    
+    def move(self):
+        self.acc = vec((0,0))
+        keys = pygame.key.get_pressed()
+
+        if keys[K_a]:
+            self.acc.x -= self.speed
+        if keys[K_d]:
+            self.acc.x += self.speed
+
+        self.vel = self.acc + (self.vel * self.fric)
+        self.pos += self.vel
+        self.rect.center = self.pos
+
+    def draw(self):
+        window.blit(self.surf, self.rect)
+
+class Road(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.surfs = [pygame.Surface((10, HEIGHT)) for x in range(8)]
+        self.rects = []
+        for i in range(len(self.surfs)):
+            self.surfs[i].fill((0,0,0))
+            self.rects.append(self.surfs[i].get_rect(center = vec(i*100 + 500, HEIGHT/2)))
+    
+    def draw(self):
+        for i in range(len(self.surfs)):
+            window.blit(self.surfs[i], self.rects[i])
+
+class Obstacle(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        obstacles.add(self)
+        self.surf = pygame.Surface((80,80))
+        self.surf.fill((40,40,255))
+        self.rect = self.surf.get_rect()
+
+        self.pos = vec((random.randint(1, 7)*100 + 450), 0)
+        self.rect.center = self.pos
+    
+    def move(self):
+        self.pos.y += 5 * (timeSpent * 0.01)
+        self.rect.center = self.pos
+
+        if pygame.sprite.collide_rect(player, self):
+            pygame.quit()
+            sys.exit()
+    
+    def draw(self):
+        window.blit(self.surf, self.rect)
+
+#class Present(pygame.sprite.Sprite):
+#   Game loop   #
+
+player = Player()
+road = Road()
+while True:
+    #   Quit   #
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            pygame.quit()
+            sys.exit()
+    
+    randNum = (20 - (timeSpent * 0.01))//1
+    if randNum < 1:
+        randNum = 1
+    if random.randint(1, randNum) == 1:
+        Obstacle()
+
+    window.fill((255,255,255))
+    road.draw()
+
+    for obstacle in obstacles:
+        obstacle.draw()
+        obstacle.move()
+    player.move()
+    player.draw()
+
+    pygame.display.update()
+    FPSClock.tick(FPS)
+    timeSpent += 1

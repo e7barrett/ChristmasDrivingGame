@@ -1,1 +1,175 @@
+#   Imports   #
 
+import pygame
+from pygame.locals import *
+from pygame.math import Vector2 as vec
+import random
+import sys
+
+#   idk yet   #
+
+pygame.init()
+
+WIDTH = 1920
+HEIGHT = 1080
+FPS = 60
+FPSClock = pygame.time.Clock()
+
+window = pygame.display.set_mode((WIDTH, HEIGHT))
+
+allSprites = pygame.sprite.Group()
+allObstacles = pygame.sprite.Group()
+
+distance = 0
+speed = 1
+
+#   Classes   #
+
+class Button(pygame.sprite.Sprite):
+    def __init__(self, pos, img):
+        self.image = img
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+        self.clicked = False
+    
+    def draw(self):
+        window.blit(self.image, self.rect)
+    
+    def isClicked(self):
+        pos = pygame.mouse.get_pos()
+        if self.rect.collidepoint(pos):
+            if pygame.mouse.get_pressed()[0] == True:
+                return True
+        return False
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        allSprites.add(self)
+        self.surf = pygame.Surface((60,100))
+        self.surf.fill((255,40,255))
+        self.rect = self.surf.get_rect()
+
+        self.pos = WIDTH/2
+        self.vel = 0
+        self.fric = 0.85
+        self.playerSpeed = 2
+    
+    def move(self):
+        self.acc = 0
+        keys = pygame.key.get_pressed()
+
+        if keys[K_a]:
+            self.acc -= self.playerSpeed
+        if keys[K_d]:
+            self.acc += self.playerSpeed
+
+        self.vel = self.acc + (self.vel * self.fric)
+        self.pos += self.vel
+        self.rect.center = vec((self.pos, 900))
+
+        if not ((WIDTH/2) - 370 < self.pos < (WIDTH/2) + 370):
+            pass #  Kill player
+
+        global distance
+        distance += 1 * speed
+
+    def draw(self):
+        window.blit(self.surf, self.rect)
+        pygame.draw.line(window, (0,0,0), vec((WIDTH/2) - 400, 0), vec((WIDTH/2) - 400, 1080))
+        pygame.draw.line(window, (0,0,0), vec((WIDTH/2) + 400, 0), vec((WIDTH/2) + 400, 1080))
+
+class Obstacle(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        allSprites.add(self)
+        allObstacles.add(self)
+        self.surf = pygame.Surface((80,80))
+        self.surf.fill((40,40,255))
+        self.rect = self.surf.get_rect()
+
+        self.pos = vec((random.randint(-3, 3)*100 + WIDTH/2), 0)
+        self.rect.center = self.pos
+    
+    def move(self):
+        self.pos.y += (speed)
+        self.rect.center = self.pos
+
+        if self.pos.y >= 1120:
+            self.kill()
+
+        if pygame.sprite.collide_rect(player, self):
+            pass   #   Damage player
+    
+    def draw(self):
+        window.blit(self.surf, self.rect)
+
+#   Scenes   #
+
+def reset():
+    for sprite in allSprites:
+        sprite.kill()
+
+class Menu():
+    def __init__(self):
+        img = pygame.image.load('game2/start.png').convert_alpha()
+        self.button = Button(vec(WIDTH/2, HEIGHT/2), img)
+        img = pygame.image.load('game2/quit.png').convert_alpha()
+        self.quitButton = Button(vec(WIDTH/2, 900), img)
+    
+    def draw(self):
+        window.fill((255,255,255))
+        self.button.draw()
+        self.quitButton.draw()
+
+    def process(self):
+        global scene
+        if self.button.isClicked():
+            reset()
+            scene = Game()
+        if self.quitButton.isClicked():
+            pygame.quit()
+            sys.exit()
+
+class Game():
+    def __init__(self):
+        global player
+        player = Player()
+        self.img = pygame.image.load('game2/road.png').convert_alpha()
+        self.treeImg = pygame.image.load('game2/tree.png').convert_alpha()
+    
+    def draw(self):
+        window.fill((255,255,255))
+        for i in range(-1, 11):
+            window.blit(self.img, vec(WIDTH/2- 350, (distance % 100 + (i*100))))
+            window.blit(self.treeImg, vec(WIDTH/2- 475 ,(distance % 100 + (i*100))))
+            window.blit(self.treeImg, vec(WIDTH/2 + 400 ,(distance % 100 + (i*100))))
+        for obstacle in allObstacles:
+            obstacle.draw()
+        player.draw()
+    
+    def process(self):
+        if len(allObstacles) < 10 and (random.randint(1, 20) == 1 or distance >= 5000):
+            if distance >= 5000:
+                print("jhgidsl")
+            Obstacle()
+        for obstacle in allObstacles:
+            obstacle.move()
+        player.move()
+
+#   Game loop   #
+
+scene = Menu()
+while True:
+    #   Quit   #
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            pygame.quit()
+            sys.exit()
+
+    scene.process()
+    scene.draw()
+
+    pygame.display.update()
+    FPSClock.tick(FPS)
+    speed += 0.01
